@@ -132,26 +132,11 @@ class CarService
             Analyze(car);
 
             partNameNeeded = HandlePartNameInput();
-            
+
             if (_storage.TryGetPart(partNameNeeded, out Part part))
             {
-                int price;
-                
                 car.TrySwapParts(part, out Part brokenPart);
-                price = _prices[brokenPart.Name];
-                
-                if (brokenPart.IsBroken)
-                {
-                    _money += price;
-                    Console.WriteLine($"\nВы успешно устранили поломку: {brokenPart.Name}." +
-                                      $"\nКасса увеличилась на {price}₮ за выполненную работу.");
-                }
-                else
-                {
-                    _money -= price;
-                    Console.WriteLine($"\nВы не устранили поломку, а поменяли целые детали местами: {brokenPart.Name}." +
-                                      $"\nКасса уменьшилась на {price}₮ за возмещение ущерба.");
-                }
+                Summarize(brokenPart);
             }
             else if (partNameNeeded != string.Empty)
             {
@@ -193,16 +178,7 @@ class CarService
         List<string> partNames = _storage.GetPartNames();
         bool isInputCorrect = false;
         
-        Console.WriteLine("\n   Выберите деталь для замены:");
-        
-        for (int i = 0; i < partNames.Count; i++)
-        {
-            string partName = partNames[i];
-            int number = i + 1;
-            int partsAmount = _storage.GetPartAmount(partNames[i]);
-            
-            Console.WriteLine($"{number}. {partName}: {partsAmount} шт");
-        }
+        ShowRapairOptions(partNames);
 
         while (isInputCorrect == false)
         {
@@ -230,7 +206,21 @@ class CarService
 
         return partNameNeeded;
     }
-    
+
+    private void ShowRapairOptions(List<string> partNames)
+    {
+         Console.WriteLine("\n   Выберите деталь для замены:");
+                
+         for (int i = 0; i < partNames.Count; i++)
+         {
+             string partName = partNames[i];
+             int number = i + 1;
+             int partsAmount = _storage.GetPartAmount(partNames[i]);
+                     
+             Console.WriteLine($"{number}. {partName}: {partsAmount} шт");
+         }
+    }
+
     private void ShowInfo()
     {
         Console.WriteLine($"Касса: {_money}₮");
@@ -240,6 +230,24 @@ class CarService
     {
         _money -= _forfeit;
         Console.WriteLine($"\nВы отказали клиенту и оплатили штраф {_forfeit}₮.");
+    }
+
+    private void Summarize(Part brokenPart)
+    {
+        int price = _prices[brokenPart.Name];
+
+        if (brokenPart.IsBroken)
+        {
+            _money += price;
+            Console.WriteLine($"\nВы успешно устранили поломку: {brokenPart.Name}." +
+                              $"\nКасса увеличилась на {price}₮ за выполненную работу.");
+        }
+        else 
+        { 
+            _money -= price; 
+            Console.WriteLine($"\nВы не устранили поломку, а поменяли целые детали местами: {brokenPart.Name}." + 
+                              $"\nКасса уменьшилась на {price}₮ за возмещение ущерба.");
+        }
     }
 }
 
