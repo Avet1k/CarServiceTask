@@ -46,21 +46,21 @@ class Part
 
 class Car
 {
-    private Part[] _parts;
+    private List<Part> _parts;
 
     public Car()
     {
         string[] partNames = PartNames.GetNames();
         
-        _parts = new Part[partNames.Length];
+        _parts = new List<Part>();
 
         for (int i = 0; i < partNames.Length; i++)
-            _parts[i] = new Part(partNames[i]);
+            _parts.Add(new Part(partNames[i]));
 
         BreakRandomPart();
     }
 
-    public int GetPartsCount => _parts.Length;
+    public int GetPartsCount => _parts.Count;
 
     public Part GetPartByIndex(int index)
     {
@@ -70,24 +70,54 @@ class Car
     private void BreakRandomPart()
     {
         Random random = new Random();
-        int partIndex = random.Next(_parts.Length);
+        int partIndex = random.Next(GetPartsCount);
         
         _parts[partIndex].Break();
+    }
+
+    public bool TrySwapParts(Part newPart, out Part brokenPart)
+    {
+        foreach (Part part in _parts)
+        {
+            if (part.Name == newPart.Name)
+            {
+                brokenPart = part;
+                _parts.Remove(part);
+                _parts.Add(newPart);
+                return true;
+            }
+        }
+
+        brokenPart = null;
+        return false;
     }
 }
 
 class CarService
 {
     private int _money;
+    private int _forfeit;
     private Storage _storage;
+    private Dictionary<string, int> _prices;
 
     public CarService()
     {
+        Random random = new Random();
+        int minPrice = 200;
+        int maxPrice = 1000;
+        
         _storage = new Storage();
+        _forfeit = 100;
+        _prices = new Dictionary<string, int>();
+
+        foreach (string partName in PartNames.GetNames())
+            _prices.Add(partName, random.Next(minPrice, maxPrice));
     }
 
     public void Work()
     {
+        const char ExitCommand = 'q';
+        
         bool isWorking = true;
 
         while (isWorking)
@@ -103,11 +133,36 @@ class CarService
 
             partNameNeeded = HandlePartNameInput();
             
-            if (isWorking == false)
-                continue;
+            if (_storage.TryGetPart(partNameNeeded, out Part part))
+            {
+                int price;
+                
+                car.TrySwapParts(part, out Part brokenPart);
+                price = _prices[brokenPart.Name];
+                
+                if (brokenPart.IsBroken)
+                {
+                    _money += price;
+                    Console.WriteLine($"\nВы успешно устранили поломку: {brokenPart.Name}." +
+                                      $"\nКасса увеличилась на {price}₮ за выполненную работу.");
+                }
+                else
+                {
+                    _money -= price;
+                    Console.WriteLine($"\nВы не устранили поломку, а поменяли целые детали местами: {brokenPart.Name}." +
+                                      $"\nКасса уменьшилась на {price}₮ за возмещение ущерба.");
+                }
+            }
+            else if (partNameNeeded != string.Empty)
+            {
+                Console.WriteLine($"\nНа складе нет детали {partNameNeeded}");
+                PayForeit();
+            }
+            
+            Console.Write($"\nНажмите любую кнопку для продолжения или {ExitCommand} для выхода из программы...");
 
-            Console.Write("\nНажмите любую кнопку для продолжения...");
-            Console.ReadKey();
+            if (Console.ReadKey(true).KeyChar == ExitCommand)
+                isWorking = false;
         }
     }
 
@@ -131,35 +186,45 @@ class CarService
     
     private string HandlePartNameInput()
     {
+        const string Refusial = "r";
+        
         string userInput;
         string partNameNeeded = string.Empty;
         List<string> partNames = _storage.GetPartNames();
         bool isInputCorrect = false;
-
+        
+        Console.WriteLine("\n   Выберите деталь для замены:");
+        
         for (int i = 0; i < partNames.Count; i++)
         {
             string partName = partNames[i];
             int number = i + 1;
-            int partsAmount = _storage.GetPartsAmount(partNames[i]);
+            int partsAmount = _storage.GetPartAmount(partNames[i]);
             
-            Console.WriteLine($"{number}. {partName}: {partsAmount}");
+            Console.WriteLine($"{number}. {partName}: {partsAmount} шт");
         }
 
         while (isInputCorrect == false)
         {
-            Console.Write("Введите номер детали: ");
+            Console.Write($"\nЧтобы отказать клиенту, введите '{Refusial}'\n" +
+                          "Введите номер детали: ");
             userInput = Console.ReadLine();
 
-            if (int.TryParse(userInput, out int partNameNumber)
-                && partNameNumber > 0
-                && partNameNumber < partNames.Count)
+            if (userInput == Refusial)
             {
-                partNameNeeded = partNames[partNameNumber];
+                PayForeit();
+                isInputCorrect = true;
+            }
+            else if (int.TryParse(userInput, out int partNameNumber)
+                     && partNameNumber > 0
+                     && partNameNumber <= partNames.Count)
+            {
+                partNameNeeded = partNames[partNameNumber - 1];
                 isInputCorrect = true;
             }
             else
             {
-                Console.WriteLine("Ошибка ввода, нужно внести номер детали!");
+                Console.WriteLine("Ошибка ввода!");
             }
         }
 
@@ -169,6 +234,12 @@ class CarService
     private void ShowInfo()
     {
         Console.WriteLine($"Касса: {_money}₮");
+    }
+
+    private void PayForeit()
+    {
+        _money -= _forfeit;
+        Console.WriteLine($"\nВы отказали клиенту и оплатили штраф {_forfeit}₮.");
     }
 }
 
@@ -217,7 +288,7 @@ class Storage
         return partNames;
     }
 
-    public int GetPartsAmount(string name)
+    public int GetPartAmount(string name)
     {
         return _parts[name].Count;
     }
