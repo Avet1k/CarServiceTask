@@ -60,7 +60,7 @@ class Car
         BreakRandomPart();
     }
 
-    public int GetPartsCount => _parts.Count;
+    public int PartsCount => _parts.Count;
 
     public Part GetPartByIndex(int index)
     {
@@ -70,7 +70,7 @@ class Car
     private void BreakRandomPart()
     {
         Random random = new Random();
-        int partIndex = random.Next(GetPartsCount);
+        int partIndex = random.Next(PartsCount);
         
         _parts[partIndex].Break();
     }
@@ -135,8 +135,10 @@ class CarService
 
             if (_storage.TryGetPart(partNameNeeded, out Part part))
             {
-                car.TrySwapParts(part, out Part brokenPart);
-                Summarize(brokenPart);
+                if (car.TrySwapParts(part, out Part brokenPart))
+                    Summarize(brokenPart);
+                else
+                    Console.WriteLine("Не удалось поменять деталь.");
             }
             else if (partNameNeeded != string.Empty)
             {
@@ -157,7 +159,7 @@ class CarService
         char notOkSymbol = '☒';
 
         Console.WriteLine("  Диагностика:");
-        for (int i = 0; i < car.GetPartsCount; i++)
+        for (int i = 0; i < car.PartsCount; i++)
         {
             char status = okSymbol;
             Part part = car.GetPartByIndex(i);
@@ -171,7 +173,7 @@ class CarService
     
     private string HandlePartNameInput()
     {
-        const string Refusial = "r";
+        const string RefusialCommand = "r";
         
         string userInput;
         string partNameNeeded = string.Empty;
@@ -182,11 +184,11 @@ class CarService
 
         while (isInputCorrect == false)
         {
-            Console.Write($"\nЧтобы отказать клиенту, введите '{Refusial}'\n" +
+            Console.Write($"\nЧтобы отказать клиенту, введите '{RefusialCommand}'\n" +
                           "Введите номер детали: ");
             userInput = Console.ReadLine();
 
-            if (userInput == Refusial)
+            if (userInput == RefusialCommand)
             {
                 PayForeit();
                 isInputCorrect = true;
